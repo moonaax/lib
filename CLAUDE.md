@@ -16,7 +16,7 @@ lib/
 
 ## langchain-project
 
-基于 LangChain + DeepSeek 的桌面聊天客户端，支持多轮对话、工具调用、RAG 知识库检索、LangGraph 编排、自纠错。
+基于 LangChain + DeepSeek 的桌面聊天客户端，支持多轮对话、工具调用、RAG 知识库检索、LangGraph 编排、自纠错、Plan-and-Execute、人机协作。
 
 **架构**：Electron (React) ←→ FastAPI (Python) ←→ LangChain + DeepSeek + FAISS
 
@@ -56,23 +56,32 @@ cp .env.example .env  # 编辑 .env 填入 DeepSeek API Key
 
 | 文件 | 职责 |
 |------|------|
-| `server.py` | FastAPI 后端，两个端点：`/chat`（AgentExecutor）和 `/graph_chat`（LangGraph） |
-| `graph_agent.py` | LangGraph ReAct Agent 终端版，独立可运行 |
-| `chat.py` | 终端版入口，支持选择 AgentExecutor 或 LangGraph 模式 |
+| `server.py` | FastAPI 后端，五个端点：`/chat` / `/graph_chat` / `/plan_chat` / `/human_chat` / `/human_confirm` |
+| `graph_agent.py` | LangGraph Agent 终端版，支持 ReAct + 自纠错 + Plan-and-Execute + 人机协作 |
+| `chat.py` | 终端版入口，支持四种模式：AgentExecutor / LangGraph+自纠错 / Plan-and-Execute / 人机协作 |
 | `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search |
 | `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 |
-| `electron/src/src/App.tsx` | 前端主组件，SSE 流式处理、ToolCard / RetryCard 渲染 |
+| `electron/src/src/App.tsx` | 前端主组件，SSE 流式 + JSON 响应、ToolCard / RetryCard / PlanCard / ToolConfirmCard |
 | `electron/main.js` | Electron 主进程 |
 | `start.sh` | 一键启动脚本（后端 + 前端） |
 
-**SSE 协议**（后端 → 前端）：
+**SSE 协议**（后端 → 前端，agent/graph/plan 模式）：
 
 ```
 event: tool_start    → {"tool": "xxx", "input": {...}}
 event: tool_end      → {"tool": "xxx", "output": "..."}
 event: tool_retry    → {"message": "..."}    ← 自纠错重试
+event: plan_start    → {"plan": ["步骤1", "步骤2", ...]}  ← Plan-and-Execute
+event: plan_step     → {"step": 1, "description": "...", "result": "..."}
 data: xxx            → LLM 逐字输出
 data: [DONE]         → 流结束
+```
+
+**JSON 响应**（human 模式，非 SSE）：
+
+```
+POST /human_chat  → {"status": "confirm_required", "tool_calls": [...]} 或 {"status": "done", "content": "..."}
+POST /human_confirm → {"status": "done", "content": "..."}
 ```
 
 **开发规范**：
@@ -96,11 +105,11 @@ data: [DONE]         → 流结束
   ✅ 第四阶段：LangGraph ReAct（StateGraph + ToolNode + 条件路由 + MemorySaver）
   ✅ 第四阶段进阶：自纠错循环（AgentState + corrector 节点 + 前端 RetryCard）
   ✅ 第四阶段进阶：Plan-and-Execute（planner → executor → replanner + 前端 PlanCard）
+  ✅ 第四阶段进阶：人机协作（interrupt_before + /human_chat + /human_confirm + 前端 ToolConfirmCard）
 
 下一步（优先级从高到低）：
-  1. 人机协作节点（interrupt_before，关键操作前暂停等人确认）
-  2. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
-  3. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+  1. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
+  2. 第六阶段：Docker 容器化 + LangSmith 链路追踪
 ```
 
 详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
