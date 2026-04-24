@@ -1,4 +1,5 @@
 langchain-project/
 my-knowledge-lib/
+test.db
 .DS_Store
 .claude/

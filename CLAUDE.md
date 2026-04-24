@@ -27,10 +27,13 @@ lib/
 | 包 | 版本 |
 |---|---|
 | langchain-classic | 1.0.x |
+| langgraph-checkpoint-sqlite | >=0.1 |
 | torch | 2.2.x |
 | numpy | <2 |
 | transformers | <4.51 |
 | sentence-transformers | <4 |
+| rank_bm25 | >=0.2 |
+| jieba | >=0.42 |
 
 **安装**：
 
@@ -59,8 +62,9 @@ cp .env.example .env  # 编辑 .env 填入 DeepSeek API Key
 | `server.py` | FastAPI 后端，五个端点：`/chat` / `/graph_chat` / `/plan_chat` / `/human_chat` / `/human_confirm` |
 | `graph_agent.py` | LangGraph Agent 终端版，支持 ReAct + 自纠错 + Plan-and-Execute + 人机协作 |
 | `chat.py` | 终端版入口，支持四种模式：AgentExecutor / LangGraph+自纠错 / Plan-and-Execute / 人机协作 |
-| `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search |
-| `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 |
+| `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search（混合检索） |
+| `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 + BM25 语料 |
+| `eval_rag.py` | RAG 评测脚本，25 个 QA 对，输出关键词命中率和来源准确率 |
 | `electron/src/src/App.tsx` | 前端主组件，SSE 流式 + JSON 响应、ToolCard / RetryCard / PlanCard / ToolConfirmCard |
 | `electron/main.js` | Electron 主进程 |
 | `start.sh` | 一键启动脚本（后端 + 前端） |
@@ -106,10 +110,10 @@ POST /human_confirm → {"status": "done", "content": "..."}
   ✅ 第四阶段进阶：自纠错循环（AgentState + corrector 节点 + 前端 RetryCard）
   ✅ 第四阶段进阶：Plan-and-Execute（planner → executor → replanner + 前端 PlanCard）
   ✅ 第四阶段进阶：人机协作（interrupt_before + /human_chat + /human_confirm + 前端 ToolConfirmCard）
+  ✅ 第五阶段：记忆持久化（AsyncSqliteSaver）+ RAG 混合检索（向量 + BM25 + RRF）+ 评测集
 
 下一步（优先级从高到低）：
-  1. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
-  2. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+  1. 第六阶段：Docker 容器化 + LangSmith 链路追踪
 ```
 
 详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
