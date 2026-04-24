@@ -1,0 +1,8 @@
+# 子项目各自有独立 git 仓库，不跟踪
+langchain-deepseek-chat/
+my-knowledge-lib/
+
+# Claude Code 本地配置
+.claude/
+
+.DS_Store
