@@ -95,12 +95,12 @@ data: [DONE]         → 流结束
   ✅ 第三阶段：知识库 RAG 问答（FAISS + bge-zh + knowledge_search 工具）
   ✅ 第四阶段：LangGraph ReAct（StateGraph + ToolNode + 条件路由 + MemorySaver）
   ✅ 第四阶段进阶：自纠错循环（AgentState + corrector 节点 + 前端 RetryCard）
+  ✅ 第四阶段进阶：Plan-and-Execute（planner → executor → replanner + 前端 PlanCard）
 
 下一步（优先级从高到低）：
-  1. Plan-and-Execute（先规划再执行，多节点图 + 状态管理）
-  2. 人机协作节点（interrupt_before，关键操作前暂停等人确认）
-  3. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
-  4. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+  1. 人机协作节点（interrupt_before，关键操作前暂停等人确认）
+  2. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
+  3. 第六阶段：Docker 容器化 + LangSmith 链路追踪
 ```
 
 详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
