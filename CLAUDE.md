@@ -1,20 +1,24 @@
 # CLAUDE.md
 
-## 项目结构
+## 项目概述
+
+个人 AI Agent 学习项目，目标是搭建一个**基于 LangGraph 的技术知识库智能问答系统**，同时作为学习笔记和简历项目。
 
 ```
 lib/
-├── langchain-project/   # DeepSeek Chat — Electron 桌面客户端
-└── my-knowledge-lib/    # 个人知识库（Obsidian）
+├── langchain-project/   # DeepSeek Chat — Electron 桌面客户端（有独立 .git）
+└── my-knowledge-lib/    # 个人知识库（Obsidian，有独立 .git）
 ```
+
+两个子项目的关系：`my-knowledge-lib` 中的文档通过 FAISS 索引构建后，被 `langchain-project` 的 `knowledge_search` 工具检索使用（RAG）。
 
 ---
 
 ## langchain-project
 
-基于 LangChain + DeepSeek 的桌面聊天客户端，支持多轮对话和流式输出。
+基于 LangChain + DeepSeek 的桌面聊天客户端，支持多轮对话、工具调用、RAG 知识库检索、LangGraph 编排、自纠错。
 
-**架构**：Electron (前端) ←→ FastAPI (后端) ←→ LangChain + DeepSeek
+**架构**：Electron (React) ←→ FastAPI (Python) ←→ LangChain + DeepSeek + FAISS
 
 **环境要求**：Python 3.12 / Node.js / PyTorch 仅支持到 2.2.x
 
@@ -45,6 +49,61 @@ cp .env.example .env  # 编辑 .env 填入 DeepSeek API Key
 **运行**：`./start.sh` 一键启动，或分开启动 `uvicorn server:app --port 8000` + `cd electron && npx electron .`
 
 **功能**：接入 DeepSeek 大模型、多轮对话记忆、流式输出（逐字显示）、清空对话历史、暗色主题
+
+**前端技术栈**：React 19 + Ant Design X + Vite + TypeScript
+
+**关键文件速查**：
+
+| 文件 | 职责 |
+|------|------|
+| `server.py` | FastAPI 后端，两个端点：`/chat`（AgentExecutor）和 `/graph_chat`（LangGraph） |
+| `graph_agent.py` | LangGraph ReAct Agent 终端版，独立可运行 |
+| `chat.py` | 终端版入口，支持选择 AgentExecutor 或 LangGraph 模式 |
+| `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search |
+| `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 |
+| `electron/src/src/App.tsx` | 前端主组件，SSE 流式处理、ToolCard / RetryCard 渲染 |
+| `electron/main.js` | Electron 主进程 |
+| `start.sh` | 一键启动脚本（后端 + 前端） |
+
+**SSE 协议**（后端 → 前端）：
+
+```
+event: tool_start    → {"tool": "xxx", "input": {...}}
+event: tool_end      → {"tool": "xxx", "output": "..."}
+event: tool_retry    → {"message": "..."}    ← 自纠错重试
+data: xxx            → LLM 逐字输出
+data: [DONE]         → 流结束
+```
+
+**开发规范**：
+
+1. **全链路改动**：修改后端（server.py / graph_agent.py / chat.py）时，必须同步考虑前端（electron/src/src/App.tsx）是否需要适配（如新增 SSE 事件类型、UI 组件、状态栏文案等）
+2. **代码注释**：新增或修改的函数、类、关键逻辑块必须添加 `【知识点】` 注释块，格式：
+   ```python
+   # ============================================================
+   # 【知识点】名称 — 简要说明
+   # ============================================================
+   ```
+   前端使用 `// ── 名称 ──` 格式的分隔注释
+
+**当前开发阶段**（截至 2026-04-24）：
+
+```
+已完成：
+  ✅ 第一阶段：多轮对话客户端（Electron + FastAPI + DeepSeek）
+  ✅ 第二阶段：工具调用 Agent（@tool + AgentExecutor）
+  ✅ 第三阶段：知识库 RAG 问答（FAISS + bge-zh + knowledge_search 工具）
+  ✅ 第四阶段：LangGraph ReAct（StateGraph + ToolNode + 条件路由 + MemorySaver）
+  ✅ 第四阶段进阶：自纠错循环（AgentState + corrector 节点 + 前端 RetryCard）
+
+下一步（优先级从高到低）：
+  1. Plan-and-Execute（先规划再执行，多节点图 + 状态管理）
+  2. 人机协作节点（interrupt_before，关键操作前暂停等人确认）
+  3. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
+  4. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+```
+
+详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
 
 ---
 
