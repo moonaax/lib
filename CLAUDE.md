@@ -1,231 +1,200 @@
-# lib — 个人项目集合
+# CLAUDE.md
 
-包含两个独立子项目，各自有自己的 git 仓库。
+## 项目概述
 
-## 子项目
+个人 AI Agent 学习项目，目标是搭建一个**基于 LangGraph 的技术知识库智能问答系统**，同时作为学习笔记和简历项目。
 
-### langchain-deepseek-chat
+```
+lib/
+├── langchain-project/   # DeepSeek Chat — Electron 桌面客户端（有独立 .git）
+└── my-knowledge-lib/    # 个人知识库（Obsidian，有独立 .git）
+```
 
-基于 LangChain + DeepSeek 的 Electron 桌面聊天客户端。
-
-- **架构**: Electron (前端) ↔ FastAPI (server.py) ↔ LangChain + DeepSeek
-- **语言**: Python 3.12 + TypeScript (Vue + Vite)
-- **关键依赖**: langchain, langchain-openai, langgraph, faiss-cpu, sentence-transformers, fastapi, uvicorn
-- **版本约束**: torch 2.2.x, numpy <2, transformers <4.51, sentence-transformers <4, langchain-classic 1.0.x
-- **启动**: `./start.sh`（后端 uvicorn + Electron）
-- **配置**: `.env` 中填 `DEEPSEEK_API_KEY`
-- **核心文件**: `server.py`（API）、`chat.py`（对话逻辑）、`graph_agent.py`（Agent）、`tools.py`（工具）、`build_index.py`（向量索引）、`electron/`（Vue + Vite 前端）
-
-### my-knowledge-lib
-
-Obsidian 管理的个人技术知识库（纯 Markdown）。
-
-- **Android知识**: 10 个模块、57 篇文档，覆盖基础到进阶
-- **Agent AI 学习**: 8 个模块、17 篇文档，覆盖 LangChain/RAG/Agent 设计模式
-- **LeetCode 刷题**: 100 道高频题，Java 实现，按专题分类
+两个子项目的关系：`my-knowledge-lib` 中的文档通过 FAISS 索引构建后，被 `langchain-project` 的 `knowledge_search` 工具检索使用（RAG）。
 
 ---
 
-## 知识库编写规范 (my-knowledge-lib)
+## langchain-project
 
-### 文件组织
+基于 LangChain + DeepSeek 的桌面聊天客户端，支持多轮对话、工具调用、RAG 知识库检索、LangGraph 编排、自纠错、Plan-and-Execute、人机协作。
 
-- 每个模块一个目录，目录内 `README.md` 作为导航索引
-- 文档文件名格式：`数字-名称.md`（如 `1-Activity全解析.md`）
-- 新增模块时同步更新父级 `README.md` 和根 `README.md`
+**架构**：Electron (React) ←→ FastAPI (Python) ←→ LangChain + DeepSeek + FAISS
 
-### Obsidian 链接
+**环境要求**：Python 3.12 / Node.js / PyTorch 仅支持到 2.2.x
 
-- 模块导航用 Obsidian wiki 链接：`[[文件名]]` 或 `[[文件名|显示文本]]`
-- 示例：`[[1-Activity全解析|Activity 全解析]]`
+**关键依赖版本约束**：
 
-### Android 知识文档格式
+| 包 | 版本 |
+|---|---|
+| langchain-classic | 1.0.x |
+| torch | 2.2.x |
+| numpy | <2 |
+| transformers | <4.51 |
+| sentence-transformers | <4 |
 
-```markdown
-# 标题
+**安装**：
 
-## 一、大节标题（中文数字编号）
+```bash
+# Python 依赖
+pip3 install -r requirements.txt
+pip3 install "numpy<2" "transformers<4.51" "sentence-transformers<4" langchain-classic
 
-正文段落。
+# Electron 依赖
+cd electron && npm install && cd ..
 
-### 1.1 小节标题（数字编号）
+# 配置 API Key
+cp .env.example .env  # 编辑 .env 填入 DeepSeek API Key
+```
 
-| 列1 | 列2 | 列3 |
-|-----|-----|-----|
-| 内容 | 内容 | 内容 |
+**运行**：`./start.sh` 一键启动，或分开启动 `uvicorn server:app --port 8000` + `cd electron && npx electron .`
 
-> 引用说明或注意事项
+**功能**：接入 DeepSeek 大模型、多轮对话记忆、流式输出（逐字显示）、清空对话历史、暗色主题
+
+**前端技术栈**：React 19 + Ant Design X + Vite + TypeScript
+
+**关键文件速查**：
+
+| 文件 | 职责 |
+|------|------|
+| `server.py` | FastAPI 后端，五个端点：`/chat` / `/graph_chat` / `/plan_chat` / `/human_chat` / `/human_confirm` |
+| `graph_agent.py` | LangGraph Agent 终端版，支持 ReAct + 自纠错 + Plan-and-Execute + 人机协作 |
+| `chat.py` | 终端版入口，支持四种模式：AgentExecutor / LangGraph+自纠错 / Plan-and-Execute / 人机协作 |
+| `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search |
+| `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 |
+| `electron/src/src/App.tsx` | 前端主组件，SSE 流式 + JSON 响应、ToolCard / RetryCard / PlanCard / ToolConfirmCard |
+| `electron/main.js` | Electron 主进程 |
+| `start.sh` | 一键启动脚本（后端 + 前端） |
+
+**SSE 协议**（后端 → 前端，agent/graph/plan 模式）：
+
+```
+event: tool_start    → {"tool": "xxx", "input": {...}}
+event: tool_end      → {"tool": "xxx", "output": "..."}
+event: tool_retry    → {"message": "..."}    ← 自纠错重试
+event: plan_start    → {"plan": ["步骤1", "步骤2", ...]}  ← Plan-and-Execute
+event: plan_step     → {"step": 1, "description": "...", "result": "..."}
+data: xxx            → LLM 逐字输出
+data: [DONE]         → 流结束
+```
+
+**JSON 响应**（human 模式，非 SSE）：
+
+```
+POST /human_chat  → {"status": "confirm_required", "tool_calls": [...]} 或 {"status": "done", "content": "..."}
+POST /human_confirm → {"status": "done", "content": "..."}
+```
+
+**开发规范**：
+
+1. **全链路改动**：修改后端（server.py / graph_agent.py / chat.py）时，必须同步考虑前端（electron/src/src/App.tsx）是否需要适配（如新增 SSE 事件类型、UI 组件、状态栏文案等）
+2. **代码注释**：新增或修改的函数、类、关键逻辑块必须添加 `【知识点】` 注释块，格式：
+   ```python
+   # ============================================================
+   # 【知识点】名称 — 简要说明
+   # ============================================================
+   ```
+   前端使用 `// ── 名称 ──` 格式的分隔注释
+
+**当前开发阶段**（截至 2026-04-24）：
+
+```
+已完成：
+  ✅ 第一阶段：多轮对话客户端（Electron + FastAPI + DeepSeek）
+  ✅ 第二阶段：工具调用 Agent（@tool + AgentExecutor）
+  ✅ 第三阶段：知识库 RAG 问答（FAISS + bge-zh + knowledge_search 工具）
+  ✅ 第四阶段：LangGraph ReAct（StateGraph + ToolNode + 条件路由 + MemorySaver）
+  ✅ 第四阶段进阶：自纠错循环（AgentState + corrector 节点 + 前端 RetryCard）
+  ✅ 第四阶段进阶：Plan-and-Execute（planner → executor → replanner + 前端 PlanCard）
+  ✅ 第四阶段进阶：人机协作（interrupt_before + /human_chat + /human_confirm + 前端 ToolConfirmCard）
+
+下一步（优先级从高到低）：
+  1. 第五阶段：记忆持久化（SQLite）+ RAG 优化（混合检索 + 评测集）
+  2. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+```
+
+详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
 
 ---
 
-## 二、下一个大节
+## my-knowledge-lib
+
+技术学习知识库，使用 Obsidian 管理。包含三大模块：
+
+- **Android 知识**：10 个模块、57 篇文档（基础/进阶/性能优化/自定义View/组件化/跨进程通信/Gradle/开源框架/架构设计/SDK设计）
+- **Agent AI 学习**：8 个模块、16 篇文档（基础概念/框架工具/RAG/Agent设计模式/Function Calling/记忆管理/应用实战/部署优化）
+- **LeetCode 刷题**：100 道高频算法题，Java 实现
+
+| 专题 | 题数 | 核心技巧 |
+|------|------|---------|
+| 数组与哈希 | 15 | HashMap、前缀和、原地哈希、桶排序 |
+| 双指针与滑动窗口 | 12 | 左右指针、快慢指针、窗口模板 |
+| 链表 | 10 | dummy 节点、快慢指针、递归反转 |
+| 二叉树 | 15 | DFS/BFS、递归三要素、前中后序 |
+| 回溯 | 8 | 选择-递归-撤销、剪枝、去重 |
+| 动态规划 | 20 | 状态转移、背包、区间 DP、空间优化 |
+| 栈与队列 | 8 | 单调栈、括号匹配、滑动窗口最大值 |
+| 图与BFS/DFS | 7 | 拓扑排序、多源 BFS、连通分量 |
+| 贪心 | 5 | 区间调度、跳跃游戏、局部最优 |
+
+### 文档规范
+
+新生成或修改文档时必须遵守：
+
+1. **标题**：`# 主题` 一级标题
+2. **引言**：开头用 `>` 引用块做简介
+3. **双链**：引言中包含 `相关主题：[[xxx]] | [[yyy]]`
+4. **分隔**：引言后用 `---` 分隔
+5. **章节**：正文用 `## 一、` `## 二、` 编号，子节用 `### 1.1` 格式
+6. **深度**：包含原理分析、源码分析、代码示例、实战场景
+7. **代码块**：必须标注语言（java/python 等）
+8. **重点提示**：适当使用 `> 🔑` 标记
+9. **字数**：每篇不少于 3000 字
+10. **双链校验**：`[[]]` 链接指向的文档必须存在
+11. **面试要点**：文档末尾必须包含 `## 面试题精选` 章节（5-10 题含简要解答）
+12. **不重复**：生成前先检查是否已存在同名文件，避免内容重复
+
+### 语言约定
+
+- Android 模块：代码示例优先使用 Java，能用 Java 就不用 Kotlin
+- Agent AI 模块：使用 Python
+
+### 生成文档标准结构
+
 ```
-
-- 一级标题 `#` 只用一次，作为文档标题
-- 大节用 `## 一、` `## 二、` 中文数字编号
-- 小节用 `### 1.1` `### 1.2` 数字编号
-- 节与节之间用 `---` 分隔
-- 对比、列表、总结优先用表格
-- 代码块标注语言（`java`、`kotlin`、`xml` 等）
-- 难点、易错点用 `> 注意：` 引用块
-- 每篇文档末尾补充面试题章节，格式如下：
-
-```markdown
-## N、面试题
-
-### Q1: 面试问题？
-
-**答：** 详细回答，包含原理、代码示例、易错点。
-
-### Q2: 下一个问题？
-
-**答：** ...
-```
-
-- 面试题章节放在 `总结` 之前，用当前文档最大的章节号 +1 编号
-- 每篇 3-6 道题，覆盖核心概念、原理追问、常见误区
-- 回答要有深度，不能只给一句话结论，要包含原理推导和代码佐证
-
-### LeetCode 刷题文档格式
-
-每道题按以下模板：
-
-```markdown
-## 序号. 题目名（#LeetCode编号）
-
-> 题意简述
-
-**思路**：一句话说明核心思路
-
-```java
-// 代码
-```
-
-- 时间 O(x)，空间 O(x)
-- 踩坑：关键易错点
-
-**📝 解析**
-
-- **思路推导**：从暴力到优化的思考过程
-- **关键点**：代码中容易忽略的细节
-- **易错点**：常见错误及原因
-- **举一反三**：相关题目或变体
-```
-
-- 每个专题文件开头写 `## 核心技巧` 总结该专题的关键方法
-- 题目之间用 `---` 分隔
-
-### Agent AI 学习文档格式
-
-Agent AI 文档分两类：概念文档和实战项目文档，格式不同。
-
-#### 概念文档（基础概念、RAG、Agent设计模式、框架与工具等）
-
-```markdown
-# 标题
-
-> **本文定位：** 一句话说明这篇文档解决什么问题、覆盖什么范围。
-
-## 1. 大节标题（阿拉伯数字编号）
-
-正文段落。
-
-### 1.1 小节标题（数字编号）
-
-> 🔑 关键洞察或易混淆点用引用块强调
-
-````（ASCII 框图用四个反引号包裹）
-┌──────────────┐
-│  流程/架构图  │
-└──────────────┘
-````
-
-````python
-# 代码示例
-````
-
-> **对比说明：** 用 `❌` vs `✅` 对比错误和正确做法
-```
-
-- 一级标题 `#` 只用一次，作为文档标题
-- 文档开头必须有 `> **本文定位：**` 引用块
-- 大节用 `## 1.` `## 2.` 阿拉伯数字编号（区别于 Android 的中文数字）
-- 小节用 `### 1.1` `### 1.2` 数字编号
-- 关键洞察用 `> 🔑` 引用块
-- 流程图、架构图用 ASCII 框图，包裹在四个反引号中
-- 代码示例用 `python` 语言标注
-- 正确/错误对比用 `❌` 和 `✅` 前缀
-- 节与节之间不需要 `---` 分隔
-- 每篇文档末尾补充面试题章节，格式同 Android（`## N、面试试题` + `### Q1:` + `**答：**`），放在总结之前
-- 每篇 3-6 道题，覆盖概念辨析、架构选型、实战场景
-
-#### 实战项目文档（LangChain实战项目）
-
-```markdown
-# 第X阶段：标题
-
-> 代码：`路径`
-
-相关主题：[[关联文档1]] | [[关联文档2]]
-
+# {topic}
+> 一句话简介
+相关主题：[[相关1]] | [[相关2]]
 ---
-
-## 一、组件/模块名（中文数字编号）
-
-| 代码 | 知识点 | 对应文档 |
-|------|--------|---------|
-| `代码片段` | 知识点说明 | [[文档链接]] |
+## 一、核心概念
+## 二、原理分析（含源码/流程图）
+## 三、实战应用（含代码示例）
+## 四、常见问题与面试要点
+## 五、面试题精选（5-10 题，含简要解答）
+## 六、总结与参考
 ```
 
-- 开头用 `> 代码：` 标注代码路径
-- 用 `相关主题：` 列出关联文档的 Obsidian 链接
-- 用 `## 一、` 中文数字分大节
-- 每节核心是三列表格：代码 → 知识点 → 对应文档
-- 节之间用 `---` 分隔
+### 索引更新
 
-#### 模块 README
+- 新增文档后，需在对应模块 `README.md` 中追加 `[[文档名]]` 链接
+- 如果文档标题与文件名不同，使用 `[[文件名|标题]]` 别名语法
+- README 格式：`# {模块名}` 开头，每行 `- [[文档名]]`
+- 保留现有 README 中手动添加的别名说明（`[[xx|描述]]` 格式）
+- 保留原 README 的自定义排列顺序，不强制按文件名排序
+- 如果模块数量或文档数量变化，同步更新根目录 README.md 中的统计数字
 
-```markdown
-# 模块名
+### 审查要点
 
-简要说明。
+审查文档时检查：标题结构、引言、双链、分隔线、内容深度、代码标注、关键提示、字数、双链有效性。
 
-## 文档列表
-
-- [[1-文件名]] — 一句话描述
-- [[2-文件名]] — 一句话描述
+审查报告格式：
+```
+## 📋 审查报告：{文件名}
+- ✅ 标题结构：正常
+- ⚠️ 缺少相关主题链接
+- ❌ 代码块未标注语言（第 45 行）
 ```
 
----
-
-## 代码项目编写规范 (langchain-deepseek-chat)
-
-### Python 后端
-
-- 文件顶部用模块级 docstring 说明功能和所属阶段（第X阶段）
-- docstring 中包含 `AI Agent 知识点索引` 列出该文件涉及的知识点
-- 知识点注释用 `# ============================================================` 分隔 + `【知识点】` 前缀标注
-- 工具定义集中在 `tools.py`，通过 `all_tools` 列表导出
-- 使用 `@tool` 装饰器定义工具，工具描述写清楚参数和返回值
-- API 路由集中在 `server.py`，SSE 流式响应用 `StreamingResponse`
-- 依赖版本严格遵循 requirements.txt，新增依赖需注明版本约束原因
-
-### Electron 前端 (Vue + TypeScript)
-
-- 使用 Vite 构建，TypeScript 编写
-- 保持轻量，不引入不必要的 UI 框架
-- 与后端通信走 `http://localhost:8000` 的 SSE/REST 接口
-
-### 代码风格
-
-- Python: PEP 8，函数和变量用 snake_case，类用 PascalCase
-- TypeScript/Vue: 遵循 ESLint 配置
-- 不写多余注释，只在知识点和非显而易见的逻辑处标注
-
----
-
-## 通用规则
-
-- 所有回复使用中文
-- 修改知识库后，如果新增/删除/重命名了文件，同步更新对应的 README.md 导航
-- 修改代码后，如果涉及新阶段的功能，更新文件顶部 docstring 的阶段说明
+约束：
+- 仅修复格式和结构问题，不擅自修改内容观点
+- 修复前必须向用户展示审查报告并获得确认
+- 检查双链时只验证文件是否存在，不验证内容
