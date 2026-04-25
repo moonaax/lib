@@ -34,6 +34,7 @@ lib/
 | sentence-transformers | <4 |
 | rank_bm25 | >=0.2 |
 | jieba | >=0.42 |
+| langsmith | >=0.2 |
 
 **安装**：
 
@@ -59,12 +60,14 @@ cp .env.example .env  # 编辑 .env 填入 DeepSeek API Key
 
 | 文件 | 职责 |
 |------|------|
-| `server.py` | FastAPI 后端，五个端点：`/chat` / `/graph_chat` / `/plan_chat` / `/human_chat` / `/human_confirm` |
+| `server.py` | FastAPI 后端，六个端点：`/chat` / `/graph_chat` / `/plan_chat` / `/human_chat` / `/human_confirm` / `/health` |
 | `graph_agent.py` | LangGraph Agent 终端版，支持 ReAct + 自纠错 + Plan-and-Execute + 人机协作 |
 | `chat.py` | 终端版入口，支持四种模式：AgentExecutor / LangGraph+自纠错 / Plan-and-Execute / 人机协作 |
 | `tools.py` | 工具定义模块，4 个工具：calculator / get_current_time / search_weather / knowledge_search（混合检索） |
 | `build_index.py` | 读取 my-knowledge-lib 文档，构建 FAISS 向量索引 + BM25 语料 |
 | `eval_rag.py` | RAG 评测脚本，25 个 QA 对，输出关键词命中率和来源准确率 |
+| `Dockerfile` | 后端容器化，Python 3.12-slim + 健康检查 |
+| `docker-compose.yml` | 编排后端服务，挂载索引/数据库/模型缓存 |
 | `electron/src/src/App.tsx` | 前端主组件，SSE 流式 + JSON 响应、ToolCard / RetryCard / PlanCard / ToolConfirmCard |
 | `electron/main.js` | Electron 主进程 |
 | `start.sh` | 一键启动脚本（后端 + 前端） |
@@ -99,7 +102,7 @@ POST /human_confirm → {"status": "done", "content": "..."}
    ```
    前端使用 `// ── 名称 ──` 格式的分隔注释
 
-**当前开发阶段**（截至 2026-04-24）：
+**当前开发阶段**（截至 2026-04-25）：
 
 ```
 已完成：
@@ -111,9 +114,9 @@ POST /human_confirm → {"status": "done", "content": "..."}
   ✅ 第四阶段进阶：Plan-and-Execute（planner → executor → replanner + 前端 PlanCard）
   ✅ 第四阶段进阶：人机协作（interrupt_before + /human_chat + /human_confirm + 前端 ToolConfirmCard）
   ✅ 第五阶段：记忆持久化（AsyncSqliteSaver）+ RAG 混合检索（向量 + BM25 + RRF）+ 评测集
+  ✅ 第六阶段：生产化部署（Docker + LangSmith + Token 计数 + API 认证）
 
-下一步（优先级从高到低）：
-  1. 第六阶段：Docker 容器化 + LangSmith 链路追踪
+项目完成，无下一步。
 ```
 
 详细进度见：`my-knowledge-lib/Agent AI学习/LangChain实战项目/0-进度总览.md`
