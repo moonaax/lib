@@ -1,5 +1,6 @@
 langchain-project/
 my-knowledge-lib/
+hello-agents/
 test.db
 .DS_Store
 .claude/
