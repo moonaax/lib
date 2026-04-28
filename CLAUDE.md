@@ -128,7 +128,7 @@ POST /human_confirm → {"status": "done", "content": "..."}
 技术学习知识库，使用 Obsidian 管理。包含三大模块：
 
 - **Android 知识**：10 个模块、61 篇文档（基础/进阶/性能优化/自定义View/组件化/跨进程通信/Gradle/开源框架/架构设计/SDK设计）
-- **Agent AI 学习**：9 个模块、20 篇文档（基础概念/框架工具/RAG/Agent设计模式/Function Calling/记忆管理/应用实战/部署优化/扩展知识）
+- **Agent AI 学习**：11 个模块、45 篇文档（基础概念/框架工具/RAG/Agent设计模式/Function Calling/记忆管理/应用实战/部署优化/扩展知识）
 - **LeetCode 刷题**：119 道高频算法题，Java 实现
 
 | 专题 | 题数 | 核心技巧 |
