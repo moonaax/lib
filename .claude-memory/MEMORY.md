@@ -1,0 +1,2 @@
+- [使用中文回复](feedback_chinese.md) — 所有回复都用中文
+- [知识库写入前对照 CLAUDE.md](feedback_knowledge_lib_rules.md) — 向 my-knowledge-lib 写 .md 前必须先对照 12 条规范,区分正式笔记/过程文件
